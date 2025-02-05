@@ -1,4 +1,8 @@
-def calculate_distance(box_height: float, real_height: float = 1.7) -> float:
-    # Focal length (you may need to calibrate this for your camera)
-    focal_length = 615
-    return (real_height * focal_length) / box_height
+def calculate_distance(height: float) -> float:
+    # Constants for distance calculation (you may need to adjust these)
+    KNOWN_HEIGHT = 1.7  # Average person height in meters
+    FOCAL_LENGTH = 615  # Camera focal length (needs calibration)
+    
+    # Calculate distance using triangle similarity
+    distance = (KNOWN_HEIGHT * FOCAL_LENGTH) / height
+    return distance
