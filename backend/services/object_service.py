@@ -1,40 +1,83 @@
-from ultralytics import YOLO
 import cv2
+import numpy as np
+import os
 
 class ObjectService:
     def __init__(self):
-        self.model = YOLO("src/models/yolov8n.pt")
+        # Load class names
+        self.classFile = 'backend/src/dataset/coco.names'
+        with open(self.classFile, 'rt') as f:
+            self.classNames = f.read().rstrip('\n').split('\n')
+
+        # Load average sizes
+        self.average_sizes_file = 'backend/src/dataset/average_sizes.txt'
+        self.average_sizes = {}
+        with open(self.average_sizes_file, 'rt') as f:
+            for line in f:
+                obj, size = line.strip().split(',')
+                self.average_sizes[obj.strip()] = float(size.strip())
+
+        # Load model
+        self.configPath = 'backend/src/models/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt'
+        self.weightsPath = 'backend/src/models/frozen_inference_graph.pb'
         
+        self.net = cv2.dnn_DetectionModel(self.weightsPath, self.configPath)
+        self.net.setInputSize(320, 320)
+        self.net.setInputScale(1.0 / 127.5)
+        self.net.setInputMean((127.5, 127.5, 127.5))
+        self.net.setInputSwapRB(True)
+        
+        self.thres = 0.45
+        self.nms_threshold = 0.2
+        self.focal_length = 615
+
+    def calculate_distance(self, object_width, real_width):
+        return (real_width * self.focal_length) / (object_width + 1e-6)
+
+    def get_position(self, frame_width, box):
+        x = box[0]
+        if x < frame_width // 3:
+            return "left"
+        elif x < 2 * (frame_width // 3):
+            return "center"
+        else:
+            return "right"
+
     def detect_objects(self, frame):
-        frame_height, frame_width, _ = frame.shape
-        left_boundary = frame_width // 3
-        right_boundary = 2 * frame_width // 3
+        frame_height, frame_width = frame.shape[:2]
         
-        results = self.model(frame)
+        classIds, confs, bbox = self.net.detect(frame, confThreshold=self.thres)
+        
         objects = []
-        
-        for result in results:
-            boxes = result.boxes
-            for box in boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                object_center_x = (x1 + x2) // 2
-                confidence = float(box.conf[0])
-                class_id = int(box.cls[0])
+        if len(classIds) > 0:
+            bbox = list(bbox)
+            confs = list(np.array(confs).reshape(1, -1)[0])
+            confs = list(map(float, confs))
+            
+            indices = cv2.dnn.NMSBoxes(bbox, confs, self.thres, self.nms_threshold)
+            
+            for i in indices.flatten():
+                box = bbox[i]
+                x, y, w, h = map(int, box)
                 
-                if object_center_x < left_boundary:
-                    position = "left"
-                elif object_center_x > right_boundary:
-                    position = "right"
-                else:
-                    position = "center"
-                    
+                class_id = int(classIds[i])
+                label = self.classNames[class_id - 1].lower()
+                confidence = float(confs[i])
+                
+                distance = None
+                if label in self.average_sizes:
+                    distance = self.calculate_distance(w, self.average_sizes[label])
+                
+                position = self.get_position(frame_width, (x, y, w, h))
+                
                 objects.append({
-                    "class_id": class_id,
+                    "label": label,
                     "confidence": confidence,
                     "position": position,
-                    "box": [x1, y1, x2, y2]
+                    "distance": f"{distance:.1f}m" if distance else None,
+                    "box": [x, y, x + w, y + h]
                 })
-                
+        
         return {
             "objects": objects,
             "frame_height": frame_height,

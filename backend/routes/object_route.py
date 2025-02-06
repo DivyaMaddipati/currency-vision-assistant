@@ -7,15 +7,10 @@ from services.object_service import ObjectService
 object_bp = Blueprint('object', __name__)
 object_service = ObjectService()
 
-@object_bp.route('/detect_objects', methods=['POST', 'OPTIONS'])
-def detect_objects():
+@object_bp.route('/detect_frame', methods=['POST', 'OPTIONS'])
+def detect_frame():
     if request.method == 'OPTIONS':
-        # Handle preflight request
-        response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        response.headers.add('Access-Control-Allow-Methods', 'POST')
-        return response
+        return '', 204
         
     try:
         data = request.json
@@ -26,11 +21,8 @@ def detect_objects():
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         result = object_service.detect_objects(frame)
-        
-        response = jsonify(result)
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response
+        return jsonify(result)
         
     except Exception as e:
-        print(f"Error in detect_objects: {str(e)}")
+        print(f"Error in detect_frame: {str(e)}")
         return jsonify({"error": str(e)}), 500
