@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Camera, StopCircle, Volume2, VolumeX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useSpeechSynthesis } from 'react-speech-kit';
+import { useSpeech } from "@/hooks/useSpeech";
 import CurrencyDetection from "@/components/CurrencyDetection";
 
 interface DetectedObject {
@@ -24,7 +24,7 @@ interface DetectionResponse {
 const Detection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { speak, speaking, supported } = useSpeechSynthesis();
+  const { speak, speaking, supported } = useSpeech();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
