@@ -20,7 +20,10 @@ class Inference:
         
     def run_image(self,path,show=True):
         
-        img = Image.open(path)
+        if isinstance(path, Image.Image):
+            img = path
+        else:
+            img = Image.open(path)
         
         if img.mode != 'RGB':
                 img = img.convert('RGB')
@@ -45,14 +48,13 @@ class Inference:
             
         self.result = f'Predicted Indian Currency : {label}'
         
-        if show == True: 
+        if show == True and not isinstance(path, Image.Image): 
             im = plt.imread(path)
             plt.imshow(im)
             plt.axis('off')
             plt.title(self.result)
         
     def return_result(self):
-        
         return self.result
       
     
