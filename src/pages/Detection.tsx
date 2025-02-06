@@ -44,7 +44,7 @@ const Detection = () => {
     ).join('. ');
 
     if (detections && detections !== lastDetectionRef.current) {
-      speak({ text: detections });
+      speak(detections); // Changed from { text: detections } to just detections
       lastSpokenTimeRef.current = now;
       lastDetectionRef.current = detections;
     }
@@ -231,7 +231,7 @@ const Detection = () => {
           </CardContent>
         </Card>
 
-        <CurrencyDetection onSpeak={text => !isMuted && speak({ text })} />
+        <CurrencyDetection onSpeak={text => !isMuted && speak(text)} /> {/* Changed from { text } to text */}
 
         {isActive && (
           <Button
