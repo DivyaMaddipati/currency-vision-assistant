@@ -32,6 +32,7 @@ const Detection = () => {
   const [isMuted, setIsMuted] = useState(false);
   const lastSpokenTimeRef = useRef(Date.now());
   const lastDetectionRef = useRef<string>("");
+  const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
 
   const announceDetection = (objects: DetectedObject[]) => {
     if (!supported || isMuted || speaking) return;
@@ -44,7 +45,8 @@ const Detection = () => {
     ).join('. ');
 
     if (detections && detections !== lastDetectionRef.current) {
-      speak(detections); // Changed from { text: detections } to just detections
+      speak(detections); 
+      setCurrentAnnouncement(detections);
       lastSpokenTimeRef.current = now;
       lastDetectionRef.current = detections;
     }
@@ -75,7 +77,6 @@ const Detection = () => {
 
       const data: DetectionResponse = await response.json();
       
-      // Draw bounding boxes on canvas
       const canvasCtx = canvasRef.current.getContext('2d');
       if (canvasCtx) {
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -95,7 +96,6 @@ const Detection = () => {
         });
       }
 
-      // Announce detections
       announceDetection(data.objects);
 
     } catch (error) {
@@ -228,10 +228,15 @@ const Detection = () => {
                 </div>
               )}
             </div>
+            {currentAnnouncement && (
+              <div className="mt-4 p-4 rounded-lg bg-white/10 backdrop-blur-sm">
+                <p className="text-white text-sm">{currentAnnouncement}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <CurrencyDetection onSpeak={text => !isMuted && speak(text)} /> {/* Changed from { text } to text */}
+        <CurrencyDetection onSpeak={text => !isMuted && speak(text)} />
 
         {isActive && (
           <Button
