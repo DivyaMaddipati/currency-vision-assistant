@@ -21,7 +21,7 @@ const CurrencyDetection = ({ onSpeak }: CurrencyDetectionProps) => {
     formData.append('image', file);
 
     try {
-      const response = await fetch('http://localhost:5000/detect_currency', {
+      const response = await fetch('http://localhost:5000/api/detect_currency', {
         method: 'POST',
         body: formData,
       });
@@ -29,7 +29,7 @@ const CurrencyDetection = ({ onSpeak }: CurrencyDetectionProps) => {
       if (!response.ok) throw new Error('Currency detection failed');
 
       const data = await response.json();
-      const message = `Detected ${data.currency_value} rupees note`;
+      const message = data.result;
       
       toast({
         title: "Currency Detected",
