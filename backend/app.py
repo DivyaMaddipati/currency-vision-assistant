@@ -16,7 +16,7 @@ CORS(app, resources={
 # Register individual route blueprints
 app.register_blueprint(currency_bp, url_prefix='/api')
 app.register_blueprint(person_bp, url_prefix='/api')
-app.register_blueprint(object_bp, url_prefix='/api')
+app.register_blueprint(object_bp)  # Remove url_prefix to match the frontend request
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
