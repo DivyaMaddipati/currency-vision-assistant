@@ -1,16 +1,20 @@
 import cv2
 import numpy as np
 import os
+from pathlib import Path
 
 class ObjectService:
     def __init__(self):
+        # Get the current file's directory
+        current_dir = Path(__file__).parent.parent
+        
         # Load class names
-        self.classFile = 'backend/src/dataset/coco.names'
+        self.classFile = str(current_dir / 'src/dataset/coco.names')
         with open(self.classFile, 'rt') as f:
             self.classNames = f.read().rstrip('\n').split('\n')
 
         # Load average sizes
-        self.average_sizes_file = 'backend/src/dataset/average_sizes.txt'
+        self.average_sizes_file = str(current_dir / 'src/dataset/average_sizes.txt')
         self.average_sizes = {}
         with open(self.average_sizes_file, 'rt') as f:
             for line in f:
@@ -18,8 +22,8 @@ class ObjectService:
                 self.average_sizes[obj.strip()] = float(size.strip())
 
         # Load model
-        self.configPath = 'backend/src/models/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt'
-        self.weightsPath = 'backend/src/models/frozen_inference_graph.pb'
+        self.configPath = str(current_dir / 'src/models/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt')
+        self.weightsPath = str(current_dir / 'src/models/frozen_inference_graph.pb')
         
         self.net = cv2.dnn_DetectionModel(self.weightsPath, self.configPath)
         self.net.setInputSize(320, 320)
