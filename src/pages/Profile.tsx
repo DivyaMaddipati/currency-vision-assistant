@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,23 +13,57 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Eye } from "lucide-react";
 
+// Import the initial user data
+import userData from '../data/userData.json';
+
 const Profile = () => {
-  const [name, setName] = useState("John Doe");
-  const [phone, setPhone] = useState("+1234567890");
-  const [language, setLanguage] = useState("en");
-  const [emergencyContact, setEmergencyContact] = useState({
-    name: "",
-    relationship: "",
-    phone: ""
-  });
+  const [name, setName] = useState(userData.name);
+  const [phone, setPhone] = useState(userData.phone);
+  const [language, setLanguage] = useState(userData.language);
+  const [emergencyContact, setEmergencyContact] = useState(userData.emergencyContact);
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    // Load user data when component mounts
+    try {
+      const savedData = localStorage.getItem('userData');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        setName(parsedData.name);
+        setPhone(parsedData.phone);
+        setLanguage(parsedData.language);
+        setEmergencyContact(parsedData.emergencyContact);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  }, []);
+
   const handleSave = () => {
-    toast({
-      title: "Profile Updated",
-      description: "Your settings have been saved successfully.",
-    });
+    // Create updated user data object
+    const updatedUserData = {
+      name,
+      phone,
+      language,
+      emergencyContact
+    };
+
+    // Save to localStorage
+    try {
+      localStorage.setItem('userData', JSON.stringify(updatedUserData));
+      toast({
+        title: "Profile Updated",
+        description: "Your settings have been saved successfully.",
+      });
+    } catch (error) {
+      console.error('Error saving user data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save your settings. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
