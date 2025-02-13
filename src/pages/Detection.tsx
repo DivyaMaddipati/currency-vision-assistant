@@ -37,6 +37,14 @@ const Detection = () => {
   const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
   const animationFrameRef = useRef<number>();
 
+  // Effect to handle muting
+  useEffect(() => {
+    if (isMuted) {
+      cancel(); // Cancel any ongoing speech when muted
+      setCurrentAnnouncement(""); // Clear the current announcement
+    }
+  }, [isMuted, cancel]);
+
   const announceDetection = (objects: DetectedObject[], personCount: number) => {
     if (!supported || isMuted || speaking) return;
 
@@ -240,7 +248,7 @@ const Detection = () => {
                 </div>
               )}
             </div>
-            {currentAnnouncement && (
+            {currentAnnouncement && !isMuted && (
               <div className="mt-4 p-4 rounded-lg bg-white/10 backdrop-blur-sm">
                 <p className="text-white text-sm">{currentAnnouncement}</p>
               </div>
