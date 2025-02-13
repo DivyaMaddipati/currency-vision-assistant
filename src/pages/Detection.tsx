@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,7 @@ interface DetectedObject {
 
 interface DetectionResponse {
   objects: DetectedObject[];
+  person_count: number;
   frame_height: number;
   frame_width: number;
 }
@@ -24,7 +26,7 @@ interface DetectionResponse {
 const Detection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { speak, speaking, supported } = useSpeech();
+  const { speak, speaking, supported, cancel } = useSpeech();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -33,22 +35,29 @@ const Detection = () => {
   const lastSpokenTimeRef = useRef(Date.now());
   const lastDetectionRef = useRef<string>("");
   const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
+  const animationFrameRef = useRef<number>();
 
-  const announceDetection = (objects: DetectedObject[]) => {
+  const announceDetection = (objects: DetectedObject[], personCount: number) => {
     if (!supported || isMuted || speaking) return;
 
     const now = Date.now();
-    if (now - lastSpokenTimeRef.current < 3000) return; // Prevent too frequent announcements
+    if (now - lastSpokenTimeRef.current < 3000) return;
+
+    let announcement = personCount > 0 
+      ? `${personCount} ${personCount === 1 ? 'person' : 'people'} detected. `
+      : '';
 
     const detections = objects.map(obj => 
       `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`
     ).join('. ');
 
-    if (detections && detections !== lastDetectionRef.current) {
-      speak(detections); 
-      setCurrentAnnouncement(detections);
+    const fullAnnouncement = announcement + detections;
+
+    if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
+      speak(fullAnnouncement);
+      setCurrentAnnouncement(fullAnnouncement);
       lastSpokenTimeRef.current = now;
-      lastDetectionRef.current = detections;
+      lastDetectionRef.current = fullAnnouncement;
     }
   };
 
@@ -96,7 +105,7 @@ const Detection = () => {
         });
       }
 
-      announceDetection(data.objects);
+      announceDetection(data.objects, data.person_count);
 
     } catch (error) {
       console.error('Frame detection error:', error);
@@ -141,22 +150,25 @@ const Detection = () => {
       videoRef.current.srcObject = null;
       setIsActive(false);
       setVideoLoaded(false);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      cancel(); // Cancel any ongoing speech
+      setCurrentAnnouncement("");
     }
   };
 
   useEffect(() => {
-    let animationId: number;
-    
     const detect = async () => {
       if (!videoRef.current || !canvasRef.current || !isActive || !videoLoaded) return;
 
       if (videoRef.current.readyState !== 4) {
-        animationId = requestAnimationFrame(detect);
+        animationFrameRef.current = requestAnimationFrame(detect);
         return;
       }
 
       await detectFrame(videoRef.current);
-      animationId = requestAnimationFrame(detect);
+      animationFrameRef.current = requestAnimationFrame(detect);
     };
 
     if (isActive && videoLoaded) {
@@ -164,8 +176,8 @@ const Detection = () => {
     }
 
     return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [isActive, videoLoaded]);

@@ -1,3 +1,4 @@
+
 import cv2
 import torch
 from torchvision import transforms
@@ -22,8 +23,10 @@ class PersonService:
         labels = predictions['labels'].numpy()
         scores = predictions['scores'].numpy()
         
+        person_count = 0
         for i, label in enumerate(labels):
             if label == self.PERSON_CLASS_ID and scores[i] > 0.6:
+                person_count += 1
                 box = boxes[i].astype(int)
                 height = box[3] - box[1]
                 distance = calculate_distance(height)
@@ -45,6 +48,7 @@ class PersonService:
         
         return {
             "persons": persons,
+            "person_count": person_count,
             "frame_height": frame.shape[0],
             "frame_width": frame.shape[1]
         }
