@@ -13,34 +13,46 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Eye } from "lucide-react";
 
-// Import the initial user data
-import userData from '../data/userData.json';
-
 const Profile = () => {
-  const [name, setName] = useState(userData.name);
-  const [phone, setPhone] = useState(userData.phone);
-  const [language, setLanguage] = useState(userData.language);
-  const [emergencyContact, setEmergencyContact] = useState(userData.emergencyContact);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [language, setLanguage] = useState("en");
+  const [emergencyContact, setEmergencyContact] = useState({
+    name: "",
+    relationship: "",
+    phone: ""
+  });
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Load user data when component mounts
+    // Load user data from backend when component mounts
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
     try {
-      const savedData = localStorage.getItem('userData');
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        setName(parsedData.name);
-        setPhone(parsedData.phone);
-        setLanguage(parsedData.language);
-        setEmergencyContact(parsedData.emergencyContact);
+      const response = await fetch('http://localhost:5000/api/profile');
+      const data = await response.json();
+      if (response.ok) {
+        setName(data.name);
+        setPhone(data.phone);
+        setLanguage(data.language);
+        setEmergencyContact(data.emergencyContact);
+      } else {
+        throw new Error(data.error);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load profile data. Please try again.",
+        variant: "destructive",
+      });
     }
-  }, []);
+  };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Create updated user data object
     const updatedUserData = {
       name,
@@ -49,13 +61,25 @@ const Profile = () => {
       emergencyContact
     };
 
-    // Save to localStorage
     try {
-      localStorage.setItem('userData', JSON.stringify(updatedUserData));
-      toast({
-        title: "Profile Updated",
-        description: "Your settings have been saved successfully.",
+      const response = await fetch('http://localhost:5000/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedUserData),
       });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Profile Updated",
+          description: "Your settings have been saved successfully.",
+        });
+      } else {
+        throw new Error(data.error);
+      }
     } catch (error) {
       console.error('Error saving user data:', error);
       toast({
