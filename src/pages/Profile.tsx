@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,18 +60,38 @@ const Profile = () => {
     defaultValues: userData
   });
 
+  // Fetch user data and set language
   useEffect(() => {
-    fetchUserData();
+    const fetchAndSetup = async () => {
+      await fetchUserData();
+    };
+    fetchAndSetup();
   }, []);
 
+  // Update translations whenever language changes
   useEffect(() => {
     const updateTranslations = async () => {
       if (currentLanguage !== "en") {
         const translatedObj: any = {};
         for (const [key, value] of Object.entries(translatedTexts)) {
-          translatedObj[key] = await translate(value, currentLanguage);
+          const translated = await translate(value, currentLanguage);
+          translatedObj[key] = translated;
         }
         setTranslatedTexts(translatedObj);
+      } else {
+        // Reset to default English texts
+        setTranslatedTexts({
+          title: "Profile Settings",
+          name: "Name",
+          phone: "Phone Number",
+          language: "Preferred Language",
+          emergency: "Emergency Contact",
+          contactName: "Contact Name",
+          relationship: "Relationship",
+          contactNumber: "Contact Number",
+          save: "Save Changes",
+          back: "Back"
+        });
       }
     };
 
@@ -94,6 +115,8 @@ const Profile = () => {
         };
         setUserData(validData);
         form.reset(validData);
+        // Set the current language from the fetched data
+        setCurrentLanguage(data.language || "en");
       } else {
         throw new Error(data.error);
       }
