@@ -28,7 +28,7 @@ export const useSpeech = (): UseSpeechReturn => {
       cancel();
       setSpeaking(true);
 
-      const response = await fetch('http://localhost:5000/speak', {
+      const response = await fetch('http://localhost:5000/api/speak', {  // Updated URL
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

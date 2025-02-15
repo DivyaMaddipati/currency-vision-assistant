@@ -67,7 +67,7 @@ const Profile = () => {
           }
         };
         setUserData(validData);
-        form.reset(validData);
+        form.reset(validData); // Reset form with new data
       } else {
         throw new Error(data.error);
       }
@@ -95,10 +95,14 @@ const Profile = () => {
       
       if (response.ok) {
         setUserData(values);
+        form.reset(values); // Reset form with new values
         toast({
           title: "Profile Updated",
           description: "Your settings have been saved successfully.",
         });
+        
+        // Fetch updated data to ensure UI is in sync
+        await fetchUserData();
       } else {
         throw new Error(data.error);
       }
