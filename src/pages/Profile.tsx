@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Eye } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@hookform/resolvers";
 import { profileSchema, type ProfileFormValues } from "@/lib/validations/profile";
 import {
   Form,
@@ -22,247 +23,227 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useState } from "react";
-import { useTranslation } from "@/hooks/useTranslation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 
 const Profile = () => {
-  const [userData, setUserData] = useState({
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [userData, setUserData] = useState<ProfileFormValues>({
     name: "",
     phone: "",
     language: "en",
     emergencyContact: {
       name: "",
       relationship: "",
-      phone: "",
-    },
+      phone: ""
+    }
   });
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { translate, isLoading, error } = useTranslation();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: {
-      name: "",
-      phone: "",
-      language: "en",
-      emergencyContact: {
-        name: "",
-        relationship: "",
-        phone: "",
-      },
-    },
+    defaultValues: userData
   });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/user_data");
-        if (!response.ok) {
-          throw new Error("Failed to fetch user data");
-        }
-        const data = await response.json();
-        setUserData(data);
-        form.reset(data);
-      } catch (error: any) {
-        console.error("Error fetching user data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load profile data",
-          variant: "destructive",
-        });
-      }
-    };
+    fetchUserData();
+  }, []);
 
-    fetchData();
-  }, [toast, form]);
-
-  async function onSubmit(values: ProfileFormValues) {
+  const fetchUserData = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/update_user", {
-        method: "POST",
+      const response = await fetch('http://localhost:5000/api/profile');
+      const data = await response.json();
+      if (response.ok) {
+        const validData: ProfileFormValues = {
+          name: data.name || "",
+          phone: data.phone || "",
+          language: data.language || "en",
+          emergencyContact: {
+            name: data.emergencyContact?.name || "",
+            relationship: data.emergencyContact?.relationship || "",
+            phone: data.emergencyContact?.phone || ""
+          }
+        };
+        setUserData(validData);
+        form.reset(validData);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load profile data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const onSubmit = async (values: ProfileFormValues) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/profile', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(values),
       });
 
+      const data = await response.json();
+      
       if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Profile updated successfully!",
-        });
         setUserData(values);
+        toast({
+          title: "Profile Updated",
+          description: "Your settings have been saved successfully.",
+        });
       } else {
-        throw new Error("Failed to update profile");
+        throw new Error(data.error);
       }
-    } catch (error: any) {
-      console.error("Profile update failed:", error);
+    } catch (error) {
+      console.error('Error saving user data:', error);
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: "Failed to save your settings. Please try again.",
         variant: "destructive",
-      });
-    }
-  }
-
-  const handleTranslate = async () => {
-    if (userData.name) {
-      const translatedName = await translate(userData.name, "te");
-      toast({
-        title: "Translated Name",
-        description: translatedName || "Translation failed",
-      });
-    } else {
-      toast({
-        title: "No Name",
-        description: "No name available to translate.",
       });
     }
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <Card className="bg-black/30 border-none shadow-xl backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-white">
-            User Profile
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4"
-            >
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        className="bg-black/50 border-none text-white placeholder:text-gray-400"
-                        placeholder="John Doe"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Phone Number</FormLabel>
-                    <FormControl>
-                      <Input
-                        className="bg-black/50 border-none text-white placeholder:text-gray-400"
-                        placeholder="+1234567890"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="language"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Language</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-black/50 border-none text-white placeholder:text-gray-400">
-                          <SelectValue placeholder="Select a language" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-black/50 border-none text-white placeholder:text-gray-400">
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    <div className="min-h-screen p-4 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20">
+      <div className="max-w-md mx-auto space-y-6">
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => navigate("/")}
+        >
+          ← Back
+        </Button>
 
-              <div className="space-y-2">
-                <p className="text-white font-bold">Emergency Contact</p>
+        <Card className="bg-white/80 backdrop-blur-md shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Eye className="w-8 h-8 text-blue-600" />
+              <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Profile Settings
+              </span>
+            </CardTitle>
+          </CardHeader>
+          
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
-                  name="emergencyContact.name"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Name</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input
-                          className="bg-black/50 border-none text-white placeholder:text-gray-400"
-                          placeholder="Jane Doe"
-                          {...field}
-                        />
+                        <Input {...field} className="h-12 text-lg" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
-                  name="emergencyContact.relationship"
+                  name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Relationship</FormLabel>
+                      <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input
-                          className="bg-black/50 border-none text-white placeholder:text-gray-400"
-                          placeholder="Sister"
-                          {...field}
-                        />
+                        <Input {...field} className="h-12 text-lg" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
-                  name="emergencyContact.phone"
+                  name="language"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Phone Number</FormLabel>
-                      <FormControl>
-                        <Input
-                          className="bg-black/50 border-none text-white placeholder:text-gray-400"
-                          placeholder="+19876543210"
-                          {...field}
-                        />
-                      </FormControl>
+                      <FormLabel>Preferred Language</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-12 text-lg bg-background">
+                            <SelectValue placeholder="Select a language" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-background border shadow-lg">
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="te">Telugu</SelectItem>
+                          <SelectItem value="hi">Hindi</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
 
-              <Button type="submit">Update Profile</Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                <div className="border-t pt-6 mt-6">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Emergency Contact</h2>
+                  
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="emergencyContact.name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="h-12 text-lg" placeholder="Enter emergency contact name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-      <Button
-        onClick={handleTranslate}
-        disabled={isLoading}
-        className="mt-4 bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-700"
-      >
-        {isLoading ? "Translating..." : "Translate Name to Telugu"}
-      </Button>
-      {error && <p className="text-red-500 mt-2">Error: {error}</p>}
+                    <FormField
+                      control={form.control}
+                      name="emergencyContact.relationship"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Relationship</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="h-12 text-lg" placeholder="e.g., Parent, Spouse, Sibling" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="emergencyContact.phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="h-12 text-lg" placeholder="Enter emergency contact number" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+                >
+                  Save Changes
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
