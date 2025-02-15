@@ -1,3 +1,4 @@
+
 flask==2.0.1
 flask-cors==3.0.10
 numpy==1.21.2
@@ -8,3 +9,7 @@ Pillow==8.3.1
 ultralytics==0.0.0
 pyttsx3==2.90
 playsound==1.2.2
+transformers==4.30.2
+sentencepiece==0.1.99
+protobuf==3.20.0
+sacremoses==0.0.53
