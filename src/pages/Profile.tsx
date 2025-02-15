@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +23,26 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const Profile = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { translate, isLoading: translationLoading } = useTranslation();
+  const [currentLanguage, setCurrentLanguage] = useState("en");
+  const [translatedTexts, setTranslatedTexts] = useState({
+    title: "Profile Settings",
+    name: "Name",
+    phone: "Phone Number",
+    language: "Preferred Language",
+    emergency: "Emergency Contact",
+    contactName: "Contact Name",
+    relationship: "Relationship",
+    contactNumber: "Contact Number",
+    save: "Save Changes",
+    back: "Back"
+  });
+
   const [userData, setUserData] = useState<ProfileFormValues>({
     name: "",
     phone: "",
@@ -47,6 +62,20 @@ const Profile = () => {
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  useEffect(() => {
+    const updateTranslations = async () => {
+      if (currentLanguage !== "en") {
+        const translatedObj: any = {};
+        for (const [key, value] of Object.entries(translatedTexts)) {
+          translatedObj[key] = await translate(value, currentLanguage);
+        }
+        setTranslatedTexts(translatedObj);
+      }
+    };
+
+    updateTranslations();
+  }, [currentLanguage, translate]);
 
   const fetchUserData = async () => {
     try {
@@ -109,6 +138,19 @@ const Profile = () => {
     }
   };
 
+  const handleLanguageChange = async (value: string) => {
+    setCurrentLanguage(value);
+    form.setValue("language", value);
+  };
+
+  if (translationLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20">
       <div className="max-w-md mx-auto space-y-6">
@@ -117,7 +159,7 @@ const Profile = () => {
           className="mb-4"
           onClick={() => navigate("/")}
         >
-          ← Back
+          ← {translatedTexts.back}
         </Button>
 
         <Card className="bg-white/80 backdrop-blur-md shadow-xl">
@@ -125,7 +167,7 @@ const Profile = () => {
             <CardTitle className="flex items-center gap-3">
               <Eye className="w-8 h-8 text-blue-600" />
               <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Profile Settings
+                {translatedTexts.title}
               </span>
             </CardTitle>
           </CardHeader>
@@ -138,7 +180,7 @@ const Profile = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>{translatedTexts.name}</FormLabel>
                       <FormControl>
                         <Input {...field} className="h-12 text-lg" />
                       </FormControl>
@@ -152,7 +194,7 @@ const Profile = () => {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>{translatedTexts.phone}</FormLabel>
                       <FormControl>
                         <Input {...field} className="h-12 text-lg" />
                       </FormControl>
@@ -166,8 +208,8 @@ const Profile = () => {
                   name="language"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Preferred Language</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>{translatedTexts.language}</FormLabel>
+                      <Select onValueChange={handleLanguageChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-12 text-lg bg-background">
                             <SelectValue placeholder="Select a language" />
@@ -175,8 +217,8 @@ const Profile = () => {
                         </FormControl>
                         <SelectContent className="bg-background border shadow-lg">
                           <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="te">Telugu</SelectItem>
-                          <SelectItem value="hi">Hindi</SelectItem>
+                          <SelectItem value="te">తెలుగు (Telugu)</SelectItem>
+                          <SelectItem value="hi">हिंदी (Hindi)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -185,7 +227,7 @@ const Profile = () => {
                 />
 
                 <div className="border-t pt-6 mt-6">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Emergency Contact</h2>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-4">{translatedTexts.emergency}</h2>
                   
                   <div className="space-y-4">
                     <FormField
@@ -193,9 +235,9 @@ const Profile = () => {
                       name="emergencyContact.name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Contact Name</FormLabel>
+                          <FormLabel>{translatedTexts.contactName}</FormLabel>
                           <FormControl>
-                            <Input {...field} className="h-12 text-lg" placeholder="Enter emergency contact name" />
+                            <Input {...field} className="h-12 text-lg" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -207,9 +249,9 @@ const Profile = () => {
                       name="emergencyContact.relationship"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Relationship</FormLabel>
+                          <FormLabel>{translatedTexts.relationship}</FormLabel>
                           <FormControl>
-                            <Input {...field} className="h-12 text-lg" placeholder="e.g., Parent, Spouse, Sibling" />
+                            <Input {...field} className="h-12 text-lg" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -221,9 +263,9 @@ const Profile = () => {
                       name="emergencyContact.phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Contact Number</FormLabel>
+                          <FormLabel>{translatedTexts.contactNumber}</FormLabel>
                           <FormControl>
-                            <Input {...field} className="h-12 text-lg" placeholder="Enter emergency contact number" />
+                            <Input {...field} className="h-12 text-lg" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -237,7 +279,7 @@ const Profile = () => {
                   size="lg"
                   className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
                 >
-                  Save Changes
+                  {translatedTexts.save}
                 </Button>
               </form>
             </Form>
