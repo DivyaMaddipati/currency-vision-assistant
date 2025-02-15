@@ -17,7 +17,8 @@ def translate():
             'hi': 'hi_IN',  # Hindi
             'te': 'te_IN',  # Telugu
             'ja': 'ja_XX',  # Japanese
-            'zh': 'zh_CN'   # Chinese
+            'zh': 'zh_CN',  # Chinese
+            'es': 'es_XX'   # Spanish
         }
         
         target_lang = language_map.get(data.get('target_lang', 'en'), 'en_XX')
