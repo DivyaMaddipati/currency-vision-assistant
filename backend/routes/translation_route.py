@@ -10,8 +10,16 @@ def translate():
     try:
         data = request.get_json()
         text = data.get('text')
-        target_lang = data.get('target_lang', 'te_IN')
-        source_lang = data.get('source_lang', 'en_XX')
+        
+        # Map frontend language codes to mBART language codes
+        language_map = {
+            'en': 'en_XX',  # English
+            'hi': 'hi_IN',  # Hindi
+            'te': 'te_IN'   # Telugu
+        }
+        
+        target_lang = language_map.get(data.get('target_lang', 'en'), 'en_XX')
+        source_lang = language_map.get(data.get('source_lang', 'en'), 'en_XX')
 
         if not text:
             return jsonify({"error": "No text provided"}), 400
