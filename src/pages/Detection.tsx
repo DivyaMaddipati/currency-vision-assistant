@@ -6,6 +6,7 @@ import { Camera, StopCircle, Volume2, VolumeX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeech } from "@/hooks/useSpeech";
+import { useTranslation } from "@/hooks/useTranslation";
 import CurrencyDetection from "@/components/CurrencyDetection";
 
 interface DetectedObject {
@@ -27,25 +28,60 @@ const Detection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { speak, speaking, supported, cancel } = useSpeech();
+  const { translate } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [userLanguage, setUserLanguage] = useState("en");
   const lastSpokenTimeRef = useRef(Date.now());
   const lastDetectionRef = useRef<string>("");
   const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
   const animationFrameRef = useRef<number>();
 
+  // Load user's language preference
+  useEffect(() => {
+    const fetchUserLanguage = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/profile');
+        const data = await response.json();
+        if (response.ok && data.language) {
+          setUserLanguage(data.language);
+        }
+      } catch (error) {
+        console.error('Error loading language preference:', error);
+      }
+    };
+    fetchUserLanguage();
+  }, []);
+
   // Effect to handle muting
   useEffect(() => {
     if (isMuted) {
-      cancel(); // Cancel any ongoing speech when muted
-      setCurrentAnnouncement(""); // Clear the current announcement
+      cancel();
+      setCurrentAnnouncement("");
     }
   }, [isMuted, cancel]);
 
-  const announceDetection = (objects: DetectedObject[], personCount: number) => {
+  const translateAndSpeak = async (text: string) => {
+    if (!supported || isMuted || speaking) return;
+    
+    try {
+      const translatedText = userLanguage !== "en" 
+        ? await translate(text, userLanguage)
+        : text;
+      
+      speak(translatedText);
+      setCurrentAnnouncement(translatedText);
+    } catch (error) {
+      console.error('Translation error:', error);
+      speak(text); // Fallback to English if translation fails
+      setCurrentAnnouncement(text);
+    }
+  };
+
+  const announceDetection = async (objects: DetectedObject[], personCount: number) => {
     if (!supported || isMuted || speaking) return;
 
     const now = Date.now();
@@ -62,8 +98,7 @@ const Detection = () => {
     const fullAnnouncement = announcement + detections;
 
     if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
-      speak(fullAnnouncement);
-      setCurrentAnnouncement(fullAnnouncement);
+      await translateAndSpeak(fullAnnouncement);
       lastSpokenTimeRef.current = now;
       lastDetectionRef.current = fullAnnouncement;
     }
@@ -256,7 +291,7 @@ const Detection = () => {
           </CardContent>
         </Card>
 
-        <CurrencyDetection onSpeak={text => !isMuted && speak(text)} />
+        <CurrencyDetection onSpeak={text => !isMuted && translateAndSpeak(text)} />
 
         {isActive && (
           <Button
