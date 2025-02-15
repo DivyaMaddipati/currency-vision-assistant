@@ -181,6 +181,8 @@ const Profile = () => {
                           <SelectItem value="en">English</SelectItem>
                           <SelectItem value="te">తెలుగు (Telugu)</SelectItem>
                           <SelectItem value="hi">हिंदी (Hindi)</SelectItem>
+                          <SelectItem value="ja">日本語 (Japanese)</SelectItem>
+                          <SelectItem value="zh">中文 (Chinese)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

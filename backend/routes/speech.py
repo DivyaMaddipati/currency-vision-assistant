@@ -16,7 +16,9 @@ def speak():
         language_map = {
             'en': 'en',
             'te': 'te',
-            'hi': 'hi'
+            'hi': 'hi',
+            'ja': 'ja',
+            'zh': 'zh-cn'
         }
         
         tts = gTTS(text=text, lang=language_map.get(language, 'en'))
