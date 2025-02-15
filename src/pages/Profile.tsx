@@ -41,15 +41,17 @@ const Profile = () => {
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: userData
+    values: userData, // Use values instead of defaultValues to keep form in sync with userData
   });
 
   useEffect(() => {
-    const fetchAndSetup = async () => {
-      await fetchUserData();
-    };
-    fetchAndSetup();
+    fetchUserData();
   }, []);
+
+  // Update form when userData changes
+  useEffect(() => {
+    form.reset(userData);
+  }, [userData, form]);
 
   const fetchUserData = async () => {
     try {
@@ -67,7 +69,6 @@ const Profile = () => {
           }
         };
         setUserData(validData);
-        form.reset(validData); // Reset form with new data
       } else {
         throw new Error(data.error);
       }
@@ -95,14 +96,10 @@ const Profile = () => {
       
       if (response.ok) {
         setUserData(values);
-        form.reset(values); // Reset form with new values
         toast({
           title: "Profile Updated",
           description: "Your settings have been saved successfully.",
         });
-        
-        // Fetch updated data to ensure UI is in sync
-        await fetchUserData();
       } else {
         throw new Error(data.error);
       }
@@ -174,7 +171,7 @@ const Profile = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Preferred Language</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-12 text-lg bg-background">
                             <SelectValue placeholder="Select a language" />
