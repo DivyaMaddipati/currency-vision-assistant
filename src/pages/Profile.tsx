@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,182 +11,258 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Eye } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { profileSchema, type ProfileFormValues } from "@/lib/validations/profile";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useState } from "react";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 const Profile = () => {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [language, setLanguage] = useState("en");
-  const [emergencyContact, setEmergencyContact] = useState({
+  const [userData, setUserData] = useState({
     name: "",
-    relationship: "",
-    phone: ""
+    phone: "",
+    language: "en",
+    emergencyContact: {
+      name: "",
+      relationship: "",
+      phone: "",
+    },
   });
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { translate, isLoading, error } = useTranslation();
+
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      language: "en",
+      emergencyContact: {
+        name: "",
+        relationship: "",
+        phone: "",
+      },
+    },
+  });
 
   useEffect(() => {
-    // Load user data from backend when component mounts
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/profile');
-      const data = await response.json();
-      if (response.ok) {
-        setName(data.name);
-        setPhone(data.phone);
-        setLanguage(data.language);
-        setEmergencyContact(data.emergencyContact);
-      } else {
-        throw new Error(data.error);
+    const fetchData = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/user_data");
+        if (!response.ok) {
+          throw new Error("Failed to fetch user data");
+        }
+        const data = await response.json();
+        setUserData(data);
+        form.reset(data);
+      } catch (error: any) {
+        console.error("Error fetching user data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error('Error loading user data:', error);
+    };
+
+    fetchData();
+  }, [toast, form]);
+
+  async function onSubmit(values: ProfileFormValues) {
+    try {
+      const response = await fetch("http://localhost:5000/api/update_user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Profile updated successfully!",
+        });
+        setUserData(values);
+      } else {
+        throw new Error("Failed to update profile");
+      }
+    } catch (error: any) {
+      console.error("Profile update failed:", error);
       toast({
         title: "Error",
-        description: "Failed to load profile data. Please try again.",
+        description: "Failed to update profile",
         variant: "destructive",
       });
     }
-  };
+  }
 
-  const handleSave = async () => {
-    // Create updated user data object
-    const updatedUserData = {
-      name,
-      phone,
-      language,
-      emergencyContact
-    };
-
-    try {
-      const response = await fetch('http://localhost:5000/api/profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedUserData),
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        toast({
-          title: "Profile Updated",
-          description: "Your settings have been saved successfully.",
-        });
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error) {
-      console.error('Error saving user data:', error);
+  const handleTranslate = async () => {
+    if (userData.name) {
+      const translatedName = await translate(userData.name, "te");
       toast({
-        title: "Error",
-        description: "Failed to save your settings. Please try again.",
-        variant: "destructive",
+        title: "Translated Name",
+        description: translatedName || "Translation failed",
+      });
+    } else {
+      toast({
+        title: "No Name",
+        description: "No name available to translate.",
       });
     }
   };
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20">
-      <div className="max-w-md mx-auto space-y-6">
-        <Button
-          variant="ghost"
-          className="mb-4"
-          onClick={() => navigate("/")}
-        >
-          ← Back
-        </Button>
-
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl p-8 shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
-            <Eye className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Profile Settings
-            </h1>
-          </div>
-
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-lg font-medium text-gray-700">Name</label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-12 text-lg"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-lg font-medium text-gray-700">Phone Number</label>
-              <Input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="h-12 text-lg"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-lg font-medium text-gray-700">Preferred Language</label>
-              <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger className="h-12 text-lg bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg">
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="hi">Hindi</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="border-t pt-6 mt-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Emergency Contact</h2>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-lg font-medium text-gray-700">Contact Name</label>
-                  <Input
-                    value={emergencyContact.name}
-                    onChange={(e) => setEmergencyContact(prev => ({ ...prev, name: e.target.value }))}
-                    className="h-12 text-lg"
-                    placeholder="Enter emergency contact name"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-lg font-medium text-gray-700">Relationship</label>
-                  <Input
-                    value={emergencyContact.relationship}
-                    onChange={(e) => setEmergencyContact(prev => ({ ...prev, relationship: e.target.value }))}
-                    className="h-12 text-lg"
-                    placeholder="e.g., Parent, Spouse, Sibling"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-lg font-medium text-gray-700">Contact Number</label>
-                  <Input
-                    value={emergencyContact.phone}
-                    onChange={(e) => setEmergencyContact(prev => ({ ...prev, phone: e.target.value }))}
-                    className="h-12 text-lg"
-                    placeholder="Enter emergency contact number"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Button
-              size="lg"
-              className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300 mt-6"
-              onClick={handleSave}
+    <div className="container mx-auto p-4">
+      <Card className="bg-black/30 border-none shadow-xl backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-white">
+            User Profile
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-4"
             >
-              Save Changes
-            </Button>
-          </div>
-        </div>
-      </div>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="bg-black/50 border-none text-white placeholder:text-gray-400"
+                        placeholder="John Doe"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Phone Number</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="bg-black/50 border-none text-white placeholder:text-gray-400"
+                        placeholder="+1234567890"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="language"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Language</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="bg-black/50 border-none text-white placeholder:text-gray-400">
+                          <SelectValue placeholder="Select a language" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-black/50 border-none text-white placeholder:text-gray-400">
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="space-y-2">
+                <p className="text-white font-bold">Emergency Contact</p>
+                <FormField
+                  control={form.control}
+                  name="emergencyContact.name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          className="bg-black/50 border-none text-white placeholder:text-gray-400"
+                          placeholder="Jane Doe"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="emergencyContact.relationship"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Relationship</FormLabel>
+                      <FormControl>
+                        <Input
+                          className="bg-black/50 border-none text-white placeholder:text-gray-400"
+                          placeholder="Sister"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="emergencyContact.phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Phone Number</FormLabel>
+                      <FormControl>
+                        <Input
+                          className="bg-black/50 border-none text-white placeholder:text-gray-400"
+                          placeholder="+19876543210"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <Button type="submit">Update Profile</Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      <Button
+        onClick={handleTranslate}
+        disabled={isLoading}
+        className="mt-4 bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-700"
+      >
+        {isLoading ? "Translating..." : "Translate Name to Telugu"}
+      </Button>
+      {error && <p className="text-red-500 mt-2">Error: {error}</p>}
     </div>
   );
 };
