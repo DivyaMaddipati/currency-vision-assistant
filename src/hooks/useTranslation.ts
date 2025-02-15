@@ -17,7 +17,7 @@ export const useTranslation = () => {
         },
         body: JSON.stringify({
           text,
-          target_lang: targetLang === 'te' ? 'te_IN' : targetLang === 'hi' ? 'hi_IN' : 'en_XX',
+          target_lang: targetLang,
           source_lang: 'en_XX'
         }),
       });
