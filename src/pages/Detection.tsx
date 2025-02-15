@@ -72,11 +72,12 @@ const Detection = () => {
         ? await translate(text, userLanguage)
         : text;
       
-      speak(translatedText);
+      // Pass both the translated text and language to the speak function
+      speak(translatedText, userLanguage);
       setCurrentAnnouncement(translatedText);
     } catch (error) {
       console.error('Translation error:', error);
-      speak(text); // Fallback to English if translation fails
+      speak(text, 'en'); // Fallback to English if translation fails
       setCurrentAnnouncement(text);
     }
   };

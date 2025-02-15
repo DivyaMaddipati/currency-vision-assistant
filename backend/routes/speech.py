@@ -1,3 +1,4 @@
+
 from flask import Blueprint, request, jsonify
 from gtts import gTTS
 import io
@@ -11,7 +12,14 @@ def speak():
         text = data.get('text', '')
         language = data.get('language', 'en')
         
-        tts = gTTS(text=text, lang=language)
+        # Map frontend language codes to gTTS language codes
+        language_map = {
+            'en': 'en',
+            'te': 'te',
+            'hi': 'hi'
+        }
+        
+        tts = gTTS(text=text, lang=language_map.get(language, 'en'))
         
         audio_io = io.BytesIO()
         tts.write_to_fp(audio_io)
