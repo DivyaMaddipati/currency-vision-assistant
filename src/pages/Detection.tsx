@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -198,7 +197,9 @@ const Detection = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
       cancel(); // Cancel any ongoing speech
-      setCurrentAnnouncement("");
+      setCurrentAnnouncement(""); // Clear the current announcement
+      lastDetectionRef.current = ""; // Reset last detection
+      lastSpokenTimeRef.current = Date.now(); // Reset timer
     }
   };
 
