@@ -1,3 +1,4 @@
+
 from flask import Blueprint, request, jsonify
 import cv2
 import numpy as np
@@ -22,4 +23,22 @@ def detect_persons():
         
     except Exception as e:
         print(f"Error in detect_persons: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Add a route that can be used by the frontend's detect_frame endpoint
+@person_bp.route('/detect_frame', methods=['POST'])
+def detect_frame():
+    try:
+        data = request.json
+        image_data = data['frame'].split(',')[1]
+        image_bytes = base64.b64decode(image_data)
+        
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        result = person_service.detect_persons(frame)
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"Error in detect_frame: {str(e)}")
         return jsonify({"error": str(e)}), 500

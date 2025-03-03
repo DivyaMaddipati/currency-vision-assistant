@@ -88,15 +88,20 @@ const Detection = () => {
     const now = Date.now();
     if (now - lastSpokenTimeRef.current < 3000) return;
 
-    let announcement = personCount > 0 
-      ? `${personCount} ${personCount === 1 ? 'person' : 'people'} detected. `
-      : '';
+    const announcements: string[] = [];
 
-    const detections = objects.map(obj => 
-      `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`
-    ).join('. ');
+    if (personCount > 0) {
+      announcements.push(`${personCount} ${personCount === 1 ? 'person' : 'people'} detected`);
+    }
 
-    const fullAnnouncement = announcement + detections;
+    if (objects.length > 0) {
+      const detections = objects.map(obj => 
+        `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`
+      );
+      announcements.push(...detections);
+    }
+
+    const fullAnnouncement = announcements.join('. ');
 
     if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
       await translateAndSpeak(fullAnnouncement);
