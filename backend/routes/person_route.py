@@ -25,7 +25,6 @@ def detect_persons():
         print(f"Error in detect_persons: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Add a route that can be used by the frontend's detect_frame endpoint
 @person_bp.route('/detect_frame', methods=['POST'])
 def detect_frame():
     try:

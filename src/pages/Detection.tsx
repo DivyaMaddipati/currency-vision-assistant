@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +38,8 @@ const Detection = () => {
   const lastDetectionRef = useRef<string>("");
   const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
   const animationFrameRef = useRef<number>();
+  const [personCount, setPersonCount] = useState(0);
+  const prevPersonCountRef = useRef(-1);
 
   // Load user's language preference
   useEffect(() => {
@@ -88,25 +89,30 @@ const Detection = () => {
     const now = Date.now();
     if (now - lastSpokenTimeRef.current < 3000) return;
 
-    const announcements: string[] = [];
-
-    if (personCount > 0) {
-      announcements.push(`${personCount} ${personCount === 1 ? 'person' : 'people'} detected`);
-    }
-
-    if (objects.length > 0) {
+    // Announce person count changes
+    if (personCount !== prevPersonCountRef.current) {
+      let countMessage = "";
+      if (personCount > 0) {
+        countMessage = `There are ${personCount} ${personCount === 1 ? 'person' : 'people'} detected. `;
+      } else {
+        countMessage = "No persons detected. ";
+      }
+      
+      // Only update the person count after we've decided to announce it
+      prevPersonCountRef.current = personCount;
+      setPersonCount(personCount);
+      
       const detections = objects.map(obj => 
         `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`
-      );
-      announcements.push(...detections);
-    }
+      ).join('. ');
 
-    const fullAnnouncement = announcements.join('. ');
+      const fullAnnouncement = countMessage + detections;
 
-    if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
-      await translateAndSpeak(fullAnnouncement);
-      lastSpokenTimeRef.current = now;
-      lastDetectionRef.current = fullAnnouncement;
+      if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
+        await translateAndSpeak(fullAnnouncement);
+        lastSpokenTimeRef.current = now;
+        lastDetectionRef.current = fullAnnouncement;
+      }
     }
   };
 
@@ -134,10 +140,18 @@ const Detection = () => {
       if (!response.ok) throw new Error('Frame detection failed');
 
       const data: DetectionResponse = await response.json();
+      setPersonCount(data.person_count);
       
       const canvasCtx = canvasRef.current.getContext('2d');
       if (canvasCtx) {
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        
+        // Draw person count
+        canvasCtx.fillStyle = "#ff0000";
+        canvasCtx.font = "24px Arial";
+        canvasCtx.fillText(`Total Persons: ${data.person_count}`, 10, 50);
+        
+        // Draw bounding boxes
         data.objects.forEach(obj => {
           const [x, y, x2, y2] = obj.box;
           canvasCtx.strokeStyle = '#00ff00';
@@ -263,7 +277,14 @@ const Detection = () => {
 
         <Card className="bg-black/30 border-none shadow-xl backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-white">Object Detection</CardTitle>
+            <CardTitle className="text-white flex justify-between items-center">
+              <span>Object Detection</span>
+              {isActive && (
+                <span className="bg-blue-600 px-3 py-1 rounded-full text-sm">
+                  Persons: {personCount}
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative aspect-video w-full overflow-hidden rounded-lg border-2 border-blue-500/30">
