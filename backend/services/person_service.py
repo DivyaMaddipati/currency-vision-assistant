@@ -57,13 +57,16 @@ class PersonService:
                     "box": box.tolist()
                 })
                 
-                # Draw bounding box and label on frame (for debugging)
+                # Draw bounding box and label on frame
                 cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
                 cv2.putText(frame, f"Person {person_count}", (box[0], box[1] - 10), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         
         # Display total person count on the frame
         cv2.putText(frame, f"Total Persons: {person_count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        
+        # Make sure to print person_count for debugging
+        print(f"Detected {person_count} persons")
         
         return {
             "persons": persons,

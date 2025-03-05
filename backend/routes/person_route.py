@@ -19,6 +19,7 @@ def detect_persons():
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         result = person_service.detect_persons(frame)
+        print(f"API response person_count: {result['person_count']}")
         return jsonify(result)
         
     except Exception as e:
@@ -36,6 +37,7 @@ def detect_frame():
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         result = person_service.detect_persons(frame)
+        print(f"API response person_count: {result['person_count']}")
         return jsonify(result)
         
     except Exception as e:

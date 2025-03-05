@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -89,16 +90,18 @@ const Detection = () => {
     const now = Date.now();
     if (now - lastSpokenTimeRef.current < 3000) return;
 
-    // Announce person count changes
+    // Only announce if person count has changed
     if (personCount !== prevPersonCountRef.current) {
+      console.log(`Person count changed from ${prevPersonCountRef.current} to ${personCount}`);
+      
       let countMessage = "";
       if (personCount > 0) {
-        countMessage = `There are ${personCount} ${personCount === 1 ? 'person' : 'people'} detected. `;
+        countMessage = `There ${personCount === 1 ? 'is' : 'are'} ${personCount} ${personCount === 1 ? 'person' : 'people'} detected. `;
       } else {
         countMessage = "No persons detected. ";
       }
       
-      // Only update the person count after we've decided to announce it
+      // Update the previous person count
       prevPersonCountRef.current = personCount;
       setPersonCount(personCount);
       
@@ -140,6 +143,10 @@ const Detection = () => {
       if (!response.ok) throw new Error('Frame detection failed');
 
       const data: DetectionResponse = await response.json();
+      console.log("Received detection response:", data);
+      console.log("Person count:", data.person_count);
+      
+      // Set the person count state
       setPersonCount(data.person_count);
       
       const canvasCtx = canvasRef.current.getContext('2d');
@@ -168,6 +175,7 @@ const Detection = () => {
         });
       }
 
+      // Pass both objects and person_count to announceDetection
       announceDetection(data.objects, data.person_count);
 
     } catch (error) {
