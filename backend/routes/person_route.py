@@ -19,13 +19,13 @@ def detect_persons():
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         result = person_service.detect_persons(frame)
-        print(f"API response person_count: {result['person_count']}")
         return jsonify(result)
         
     except Exception as e:
         print(f"Error in detect_persons: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+# Add a route that can be used by the frontend's detect_frame endpoint
 @person_bp.route('/detect_frame', methods=['POST'])
 def detect_frame():
     try:
@@ -37,19 +37,8 @@ def detect_frame():
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         result = person_service.detect_persons(frame)
-        print(f"API response person_count: {result['person_count']}")
         return jsonify(result)
         
     except Exception as e:
         print(f"Error in detect_frame: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-@person_bp.route('/models_status', methods=['GET'])
-def models_status():
-    try:
-        # The PersonService is already initialized above, so if we reach here,
-        # it means the model is loaded and ready
-        return jsonify({"ready": True, "message": "Models loaded successfully"})
-    except Exception as e:
-        print(f"Error checking model status: {str(e)}")
-        return jsonify({"ready": False, "message": str(e)}), 500

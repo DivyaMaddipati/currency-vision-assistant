@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Camera, StopCircle, Volume2, VolumeX, Loader } from "lucide-react";
+import { Camera, StopCircle, Volume2, VolumeX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -28,7 +28,7 @@ const Detection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { speak, speaking, supported, cancel } = useSpeech();
-  const { translate, isLoading: translationLoading } = useTranslation();
+  const { translate } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -39,9 +39,6 @@ const Detection = () => {
   const lastDetectionRef = useRef<string>("");
   const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
   const animationFrameRef = useRef<number>();
-  const [personCount, setPersonCount] = useState(0);
-  const prevPersonCountRef = useRef(-1);
-  const [isModelLoading, setIsModelLoading] = useState(true);
 
   // Load user's language preference
   useEffect(() => {
@@ -57,30 +54,6 @@ const Detection = () => {
       }
     };
     fetchUserLanguage();
-  }, []);
-
-  // Check if models are loaded
-  useEffect(() => {
-    const checkModelsReady = async () => {
-      try {
-        // Make a simple request to check if models are ready
-        const response = await fetch('http://localhost:5000/api/models_status');
-        const data = await response.json();
-        
-        if (response.ok && data.ready) {
-          setIsModelLoading(false);
-        } else {
-          // If not ready, check again in 2 seconds
-          setTimeout(checkModelsReady, 2000);
-        }
-      } catch (error) {
-        console.error('Error checking model status:', error);
-        // If error, check again in 3 seconds
-        setTimeout(checkModelsReady, 3000);
-      }
-    };
-    
-    checkModelsReady();
   }, []);
 
   // Effect to handle muting
@@ -115,32 +88,25 @@ const Detection = () => {
     const now = Date.now();
     if (now - lastSpokenTimeRef.current < 3000) return;
 
-    // Only announce if person count has changed
-    if (personCount !== prevPersonCountRef.current) {
-      console.log(`Person count changed from ${prevPersonCountRef.current} to ${personCount}`);
-      
-      let countMessage = "";
-      if (personCount > 0) {
-        countMessage = `There ${personCount === 1 ? 'is' : 'are'} ${personCount} ${personCount === 1 ? 'person' : 'people'} detected. `;
-      } else {
-        countMessage = "No persons detected. ";
-      }
-      
-      // Update the previous person count
-      prevPersonCountRef.current = personCount;
-      setPersonCount(personCount);
-      
+    const announcements: string[] = [];
+
+    if (personCount > 0) {
+      announcements.push(`${personCount} ${personCount === 1 ? 'person' : 'people'} detected`);
+    }
+
+    if (objects.length > 0) {
       const detections = objects.map(obj => 
         `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`
-      ).join('. ');
+      );
+      announcements.push(...detections);
+    }
 
-      const fullAnnouncement = countMessage + detections;
+    const fullAnnouncement = announcements.join('. ');
 
-      if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
-        await translateAndSpeak(fullAnnouncement);
-        lastSpokenTimeRef.current = now;
-        lastDetectionRef.current = fullAnnouncement;
-      }
+    if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
+      await translateAndSpeak(fullAnnouncement);
+      lastSpokenTimeRef.current = now;
+      lastDetectionRef.current = fullAnnouncement;
     }
   };
 
@@ -168,22 +134,10 @@ const Detection = () => {
       if (!response.ok) throw new Error('Frame detection failed');
 
       const data: DetectionResponse = await response.json();
-      console.log("Received detection response:", data);
-      console.log("Person count:", data.person_count);
-      
-      // Set the person count state
-      setPersonCount(data.person_count);
       
       const canvasCtx = canvasRef.current.getContext('2d');
       if (canvasCtx) {
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        
-        // Draw person count
-        canvasCtx.fillStyle = "#ff0000";
-        canvasCtx.font = "24px Arial";
-        canvasCtx.fillText(`Total Persons: ${data.person_count}`, 10, 50);
-        
-        // Draw bounding boxes
         data.objects.forEach(obj => {
           const [x, y, x2, y2] = obj.box;
           canvasCtx.strokeStyle = '#00ff00';
@@ -200,7 +154,6 @@ const Detection = () => {
         });
       }
 
-      // Pass both objects and person_count to announceDetection
       announceDetection(data.objects, data.person_count);
 
     } catch (error) {
@@ -209,15 +162,6 @@ const Detection = () => {
   };
 
   const startCamera = async () => {
-    if (isModelLoading) {
-      toast({
-        title: "Models Loading",
-        description: "Please wait until the detection models are fully loaded",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -319,14 +263,7 @@ const Detection = () => {
 
         <Card className="bg-black/30 border-none shadow-xl backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-white flex justify-between items-center">
-              <span>Object Detection</span>
-              {isActive && (
-                <span className="bg-blue-600 px-3 py-1 rounded-full text-sm">
-                  Persons: {personCount}
-                </span>
-              )}
-            </CardTitle>
+            <CardTitle className="text-white">Object Detection</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative aspect-video w-full overflow-hidden rounded-lg border-2 border-blue-500/30">
@@ -343,22 +280,14 @@ const Detection = () => {
               />
               {!isActive && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-                  {isModelLoading ? (
-                    <div className="text-center">
-                      <Loader className="mx-auto h-10 w-10 text-blue-400 animate-spin mb-2" />
-                      <p className="text-white text-lg">Loading detection models...</p>
-                      <p className="text-white/60 text-sm mt-2">This may take a moment</p>
-                    </div>
-                  ) : (
-                    <Button
-                      size="lg"
-                      className="text-xl bg-blue-600 hover:bg-blue-700 transition-colors"
-                      onClick={startCamera}
-                    >
-                      <Camera className="mr-2 h-6 w-6" />
-                      Start Camera
-                    </Button>
-                  )}
+                  <Button
+                    size="lg"
+                    className="text-xl bg-blue-600 hover:bg-blue-700 transition-colors"
+                    onClick={startCamera}
+                  >
+                    <Camera className="mr-2 h-6 w-6" />
+                    Start Camera
+                  </Button>
                 </div>
               )}
             </div>
