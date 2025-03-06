@@ -25,7 +25,6 @@ def detect_persons():
         print(f"Error in detect_persons: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Add a route that can be used by the frontend's detect_frame endpoint
 @person_bp.route('/detect_frame', methods=['POST'])
 def detect_frame():
     try:
@@ -42,3 +41,12 @@ def detect_frame():
     except Exception as e:
         print(f"Error in detect_frame: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@person_bp.route('/model_status', methods=['GET'])
+def model_status():
+    try:
+        is_ready = person_service.is_model_ready()
+        return jsonify({"is_ready": is_ready})
+    except Exception as e:
+        print(f"Error in model_status: {str(e)}")
+        return jsonify({"error": str(e), "is_ready": False}), 500
