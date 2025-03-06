@@ -43,3 +43,13 @@ def detect_frame():
     except Exception as e:
         print(f"Error in detect_frame: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@person_bp.route('/models_status', methods=['GET'])
+def models_status():
+    try:
+        # The PersonService is already initialized above, so if we reach here,
+        # it means the model is loaded and ready
+        return jsonify({"ready": True, "message": "Models loaded successfully"})
+    except Exception as e:
+        print(f"Error checking model status: {str(e)}")
+        return jsonify({"ready": False, "message": str(e)}), 500

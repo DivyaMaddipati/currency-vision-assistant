@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Camera, StopCircle, Volume2, VolumeX } from "lucide-react";
+import { Camera, StopCircle, Volume2, VolumeX, Loader } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -28,7 +28,7 @@ const Detection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { speak, speaking, supported, cancel } = useSpeech();
-  const { translate } = useTranslation();
+  const { translate, isLoading: translationLoading } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -41,6 +41,7 @@ const Detection = () => {
   const animationFrameRef = useRef<number>();
   const [personCount, setPersonCount] = useState(0);
   const prevPersonCountRef = useRef(-1);
+  const [isModelLoading, setIsModelLoading] = useState(true);
 
   // Load user's language preference
   useEffect(() => {
@@ -56,6 +57,30 @@ const Detection = () => {
       }
     };
     fetchUserLanguage();
+  }, []);
+
+  // Check if models are loaded
+  useEffect(() => {
+    const checkModelsReady = async () => {
+      try {
+        // Make a simple request to check if models are ready
+        const response = await fetch('http://localhost:5000/api/models_status');
+        const data = await response.json();
+        
+        if (response.ok && data.ready) {
+          setIsModelLoading(false);
+        } else {
+          // If not ready, check again in 2 seconds
+          setTimeout(checkModelsReady, 2000);
+        }
+      } catch (error) {
+        console.error('Error checking model status:', error);
+        // If error, check again in 3 seconds
+        setTimeout(checkModelsReady, 3000);
+      }
+    };
+    
+    checkModelsReady();
   }, []);
 
   // Effect to handle muting
@@ -184,6 +209,15 @@ const Detection = () => {
   };
 
   const startCamera = async () => {
+    if (isModelLoading) {
+      toast({
+        title: "Models Loading",
+        description: "Please wait until the detection models are fully loaded",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -309,14 +343,22 @@ const Detection = () => {
               />
               {!isActive && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-                  <Button
-                    size="lg"
-                    className="text-xl bg-blue-600 hover:bg-blue-700 transition-colors"
-                    onClick={startCamera}
-                  >
-                    <Camera className="mr-2 h-6 w-6" />
-                    Start Camera
-                  </Button>
+                  {isModelLoading ? (
+                    <div className="text-center">
+                      <Loader className="mx-auto h-10 w-10 text-blue-400 animate-spin mb-2" />
+                      <p className="text-white text-lg">Loading detection models...</p>
+                      <p className="text-white/60 text-sm mt-2">This may take a moment</p>
+                    </div>
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="text-xl bg-blue-600 hover:bg-blue-700 transition-colors"
+                      onClick={startCamera}
+                    >
+                      <Camera className="mr-2 h-6 w-6" />
+                      Start Camera
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
