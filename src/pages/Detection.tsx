@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Camera, CircleOff, Loader2, StopCircle, Volume2, VolumeX } from "lucide-react";
+import { Camera, StopCircle, Volume2, VolumeX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -22,7 +22,6 @@ interface DetectionResponse {
   person_count: number;
   frame_height: number;
   frame_width: number;
-  is_model_ready?: boolean;
 }
 
 const Detection = () => {
@@ -36,13 +35,8 @@ const Detection = () => {
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [userLanguage, setUserLanguage] = useState("en");
-  const [modelsReady, setModelsReady] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-  const [personCount, setPersonCount] = useState(0);
-  const prevPersonCount = useRef(0);
   const lastSpokenTimeRef = useRef(Date.now());
-  const speechQueueRef = useRef<string[]>([]);
-  const isSpeakingRef = useRef(false);
+  const lastDetectionRef = useRef<string>("");
   const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
   const animationFrameRef = useRef<number>();
 
@@ -62,146 +56,62 @@ const Detection = () => {
     fetchUserLanguage();
   }, []);
 
-  // Check if models are ready
-  useEffect(() => {
-    const checkModelsStatus = async () => {
-      if (isChecking) return;
-      setIsChecking(true);
-      
-      try {
-        const response = await fetch('http://localhost:5000/api/model_status');
-        const data = await response.json();
-        
-        if (response.ok && data.is_ready) {
-          setModelsReady(true);
-          setIsChecking(false);
-        } else {
-          // If models are not ready, check again after 2 seconds
-          setTimeout(checkModelsStatus, 2000);
-        }
-      } catch (error) {
-        console.error('Error checking model status:', error);
-        // If there was an error, try again after 3 seconds
-        setTimeout(checkModelsStatus, 3000);
-      }
-    };
-    
-    checkModelsStatus();
-    
-    return () => {
-      setIsChecking(false);
-    };
-  }, []);
-
   // Effect to handle muting
   useEffect(() => {
     if (isMuted) {
       cancel();
       setCurrentAnnouncement("");
-      speechQueueRef.current = [];
     }
   }, [isMuted, cancel]);
 
-  // Handle the speech queue
-  useEffect(() => {
-    const processSpeechQueue = async () => {
-      if (isMuted || isSpeakingRef.current || speechQueueRef.current.length === 0) return;
-      
-      isSpeakingRef.current = true;
-      const text = speechQueueRef.current.shift() || "";
-      
-      try {
-        const translatedText = userLanguage !== "en" 
-          ? await translate(text, userLanguage)
-          : text;
-        
-        setCurrentAnnouncement(translatedText);
-        speak(translatedText, userLanguage);
-        
-        // Wait for the speech to end before processing the next item
-        const checkIfSpeaking = setInterval(() => {
-          if (!speaking) {
-            clearInterval(checkIfSpeaking);
-            isSpeakingRef.current = false;
-            // Process next item in queue if available
-            if (speechQueueRef.current.length > 0) {
-              processSpeechQueue();
-            }
-          }
-        }, 500);
-      } catch (error) {
-        console.error('Translation or speech error:', error);
-        isSpeakingRef.current = false;
-        // If something went wrong, try with the next message
-        if (speechQueueRef.current.length > 0) {
-          processSpeechQueue();
-        }
-      }
-    };
-
-    processSpeechQueue();
-  }, [speaking, isMuted, translate, speak, userLanguage]);
-
-  const addToSpeechQueue = (text: string) => {
-    if (!text || isMuted) return;
+  const translateAndSpeak = async (text: string) => {
+    if (!supported || isMuted || speaking) return;
     
-    speechQueueRef.current.push(text);
-    
-    // If not currently speaking, start processing the queue
-    if (!isSpeakingRef.current) {
-      const processSpeechQueue = async () => {
-        if (isMuted || isSpeakingRef.current || speechQueueRef.current.length === 0) return;
-        
-        isSpeakingRef.current = true;
-        const queuedText = speechQueueRef.current.shift() || "";
-        
-        try {
-          const translatedText = userLanguage !== "en" 
-            ? await translate(queuedText, userLanguage)
-            : queuedText;
-          
-          setCurrentAnnouncement(translatedText);
-          speak(translatedText, userLanguage);
-        } catch (error) {
-          console.error('Translation or speech error:', error);
-          isSpeakingRef.current = false;
-        }
-      };
+    try {
+      const translatedText = userLanguage !== "en" 
+        ? await translate(text, userLanguage)
+        : text;
       
-      processSpeechQueue();
+      // Pass both the translated text and language to the speak function
+      speak(translatedText, userLanguage);
+      setCurrentAnnouncement(translatedText);
+    } catch (error) {
+      console.error('Translation error:', error);
+      speak(text, 'en'); // Fallback to English if translation fails
+      setCurrentAnnouncement(text);
     }
   };
 
-  const announceDetection = (objects: DetectedObject[], personCount: number) => {
-    if (!supported || isMuted) return;
+  const announceDetection = async (objects: DetectedObject[], personCount: number) => {
+    if (!supported || isMuted || speaking) return;
 
     const now = Date.now();
-    // Only announce if significant time has passed (3 seconds)
     if (now - lastSpokenTimeRef.current < 3000) return;
 
-    // Check if the person count has changed
-    if (personCount !== prevPersonCount.current) {
-      prevPersonCount.current = personCount;
-      
-      const countAnnouncement = personCount > 0
-        ? `${personCount} ${personCount === 1 ? 'person' : 'people'} detected`
-        : "No people detected";
-      
-      addToSpeechQueue(countAnnouncement);
-      lastSpokenTimeRef.current = now;
+    const announcements: string[] = [];
+
+    if (personCount > 0) {
+      announcements.push(`${personCount} ${personCount === 1 ? 'person' : 'people'} detected`);
     }
 
-    // Announce individual objects with a delay between announcements
     if (objects.length > 0) {
-      objects.forEach((obj, index) => {
-        const objectAnnouncement = `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`;
-        addToSpeechQueue(objectAnnouncement);
-      });
+      const detections = objects.map(obj => 
+        `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`
+      );
+      announcements.push(...detections);
+    }
+
+    const fullAnnouncement = announcements.join('. ');
+
+    if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
+      await translateAndSpeak(fullAnnouncement);
+      lastSpokenTimeRef.current = now;
+      lastDetectionRef.current = fullAnnouncement;
     }
   };
 
   const detectFrame = async (videoElement: HTMLVideoElement) => {
-    if (!videoElement || !canvasRef.current || !modelsReady) return;
+    if (!videoElement || !canvasRef.current) return;
     
     const canvas = document.createElement('canvas');
     canvas.width = videoElement.videoWidth;
@@ -213,7 +123,7 @@ const Detection = () => {
     const base64Frame = canvas.toDataURL('image/jpeg');
 
     try {
-      const response = await fetch('http://localhost:5000/api/detect_frame', {
+      const response = await fetch('http://localhost:5000/detect_frame', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -225,18 +135,9 @@ const Detection = () => {
 
       const data: DetectionResponse = await response.json();
       
-      // Update person count
-      setPersonCount(data.person_count);
-      
       const canvasCtx = canvasRef.current.getContext('2d');
       if (canvasCtx) {
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        
-        // Draw person count on the canvas
-        canvasCtx.fillStyle = '#00ff00';
-        canvasCtx.font = '20px Arial';
-        canvasCtx.fillText(`Person Count: ${data.person_count}`, 10, 30);
-        
         data.objects.forEach(obj => {
           const [x, y, x2, y2] = obj.box;
           canvasCtx.strokeStyle = '#00ff00';
@@ -261,15 +162,6 @@ const Detection = () => {
   };
 
   const startCamera = async () => {
-    if (!modelsReady) {
-      toast({
-        title: "Models not ready",
-        description: "Please wait for models to load before starting the camera",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -289,9 +181,6 @@ const Detection = () => {
           }
         };
         setIsActive(true);
-        
-        // Announce camera started
-        addToSpeechQueue("Camera started. Looking for objects.");
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
@@ -315,19 +204,14 @@ const Detection = () => {
       }
       cancel(); // Cancel any ongoing speech
       setCurrentAnnouncement(""); // Clear the current announcement
-      speechQueueRef.current = []; // Clear speech queue
-      prevPersonCount.current = 0; // Reset person count
-      setPersonCount(0);
+      lastDetectionRef.current = ""; // Reset last detection
       lastSpokenTimeRef.current = Date.now(); // Reset timer
-      
-      // Announce camera stopped
-      addToSpeechQueue("Camera stopped");
     }
   };
 
   useEffect(() => {
     const detect = async () => {
-      if (!videoRef.current || !canvasRef.current || !isActive || !videoLoaded || !modelsReady) return;
+      if (!videoRef.current || !canvasRef.current || !isActive || !videoLoaded) return;
 
       if (videoRef.current.readyState !== 4) {
         animationFrameRef.current = requestAnimationFrame(detect);
@@ -338,7 +222,7 @@ const Detection = () => {
       animationFrameRef.current = requestAnimationFrame(detect);
     };
 
-    if (isActive && videoLoaded && modelsReady) {
+    if (isActive && videoLoaded) {
       detect();
     }
 
@@ -347,7 +231,7 @@ const Detection = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isActive, videoLoaded, modelsReady]);
+  }, [isActive, videoLoaded]);
 
   return (
     <div className="min-h-screen p-4 bg-gradient-to-b from-gray-900 via-blue-900 to-gray-900">
@@ -379,14 +263,7 @@ const Detection = () => {
 
         <Card className="bg-black/30 border-none shadow-xl backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-white flex items-center justify-between">
-              <span>Object Detection</span>
-              {personCount > 0 && (
-                <span className="bg-green-600 px-3 py-1 rounded-full text-sm">
-                  {personCount} {personCount === 1 ? 'person' : 'people'} detected
-                </span>
-              )}
-            </CardTitle>
+            <CardTitle className="text-white">Object Detection</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative aspect-video w-full overflow-hidden rounded-lg border-2 border-blue-500/30">
@@ -402,23 +279,15 @@ const Detection = () => {
                 className="absolute inset-0 w-full h-full"
               />
               {!isActive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
-                  {!modelsReady ? (
-                    <div className="text-center">
-                      <Loader2 className="h-10 w-10 animate-spin text-blue-400 mx-auto mb-4" />
-                      <p className="text-white text-xl mb-2">Loading models...</p>
-                      <p className="text-gray-400 text-sm">Please wait while we prepare the detection models</p>
-                    </div>
-                  ) : (
-                    <Button
-                      size="lg"
-                      className="text-xl bg-blue-600 hover:bg-blue-700 transition-colors"
-                      onClick={startCamera}
-                    >
-                      <Camera className="mr-2 h-6 w-6" />
-                      Start Camera
-                    </Button>
-                  )}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                  <Button
+                    size="lg"
+                    className="text-xl bg-blue-600 hover:bg-blue-700 transition-colors"
+                    onClick={startCamera}
+                  >
+                    <Camera className="mr-2 h-6 w-6" />
+                    Start Camera
+                  </Button>
                 </div>
               )}
             </div>
@@ -430,7 +299,7 @@ const Detection = () => {
           </CardContent>
         </Card>
 
-        <CurrencyDetection onSpeak={text => !isMuted && addToSpeechQueue(text)} />
+        <CurrencyDetection onSpeak={text => !isMuted && translateAndSpeak(text)} />
 
         {isActive && (
           <Button
