@@ -4,14 +4,21 @@ import torch
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from utils.distance import calculate_distance
+import time
 
 class PersonService:
     def __init__(self):
+        print("Initializing PersonService and loading model...")
+        start_time = time.time()
         self.model = fasterrcnn_resnet50_fpn(pretrained=True)
         self.model.eval()
         self.PERSON_CLASS_ID = 1  # Class ID for 'person' in COCO dataset
+        load_time = time.time() - start_time
+        print(f"Model loaded in {load_time:.2f} seconds")
         
     def detect_persons(self, frame):
+        start_time = time.time()
+        
         # Convert the frame to tensor
         transform = transforms.ToTensor()
         frame_tensor = transform(frame).unsqueeze(0)
@@ -21,9 +28,9 @@ class PersonService:
             predictions = self.model(frame_tensor)[0]
         
         # Extract bounding boxes, labels, and scores
-        boxes = predictions['boxes'].numpy()
-        labels = predictions['labels'].numpy()
-        scores = predictions['scores'].numpy()
+        boxes = predictions['boxes'].cpu().numpy()
+        labels = predictions['labels'].cpu().numpy()
+        scores = predictions['scores'].cpu().numpy()
         
         persons = []
         person_count = 0
@@ -56,11 +63,9 @@ class PersonService:
                     "position": position,
                     "box": box.tolist()
                 })
-                
-                # Draw bounding box and label (if needed for debugging)
-                # cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
-                # cv2.putText(frame, f"Person {person_count}", (box[0], box[1] - 10), 
-                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        
+        processing_time = time.time() - start_time
+        print(f"Person detection completed in {processing_time:.3f}s, found {person_count} persons")
         
         return {
             "persons": persons,
