@@ -10,6 +10,11 @@ class PersonService:
         self.model = fasterrcnn_resnet50_fpn(pretrained=True)
         self.model.eval()
         self.PERSON_CLASS_ID = 1  # Class ID for 'person' in COCO dataset
+        self.model_ready = True  # Set to True once model is loaded
+        
+    def is_model_ready(self):
+        """Check if the model is loaded and ready for inference"""
+        return self.model_ready
         
     def detect_persons(self, frame):
         # Convert the frame to tensor
@@ -56,11 +61,6 @@ class PersonService:
                     "position": position,
                     "box": box.tolist()
                 })
-                
-                # Draw bounding box and label (if needed for debugging)
-                # cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
-                # cv2.putText(frame, f"Person {person_count}", (box[0], box[1] - 10), 
-                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         
         return {
             "persons": persons,
