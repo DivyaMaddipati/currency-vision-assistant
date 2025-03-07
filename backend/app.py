@@ -19,17 +19,11 @@ CORS(app, resources={
 
 # Register individual route blueprints
 app.register_blueprint(currency_bp, url_prefix='/api')
-app.register_blueprint(person_bp, url_prefix='/api/person')  # Person routes under /api/person
+app.register_blueprint(person_bp, url_prefix='/api')
 app.register_blueprint(object_bp)  # Remove url_prefix to match the frontend request
 app.register_blueprint(profile_bp, url_prefix='/api')
 app.register_blueprint(translation_bp, url_prefix='/api')
 app.register_blueprint(speech_bp, url_prefix='/api')  # Add speech blueprint with /api prefix
-
-# Add models status endpoint
-@app.route('/api/models_status', methods=['GET'])
-def models_status():
-    from routes.person_route import MODEL_STATUS
-    return MODEL_STATUS
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
