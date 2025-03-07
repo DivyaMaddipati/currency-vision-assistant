@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Camera, StopCircle, Volume2, VolumeX } from "lucide-react";
+import { Camera, StopCircle, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -35,6 +35,7 @@ const Detection = () => {
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [userLanguage, setUserLanguage] = useState("en");
+  const [isModelLoading, setIsModelLoading] = useState(true);
   const lastSpokenTimeRef = useRef(Date.now());
   const lastDetectionRef = useRef<string>("");
   const [currentAnnouncement, setCurrentAnnouncement] = useState<string>("");
@@ -44,13 +45,23 @@ const Detection = () => {
   useEffect(() => {
     const fetchUserLanguage = async () => {
       try {
+        setIsModelLoading(true);
         const response = await fetch('http://localhost:5000/api/profile');
         const data = await response.json();
         if (response.ok && data.language) {
           setUserLanguage(data.language);
+          console.log("User language set to:", data.language);
+        }
+        
+        // Check model status
+        const modelResponse = await fetch('http://localhost:5000/api/model_status');
+        if (modelResponse.ok) {
+          setIsModelLoading(false);
+          console.log("Models are ready");
         }
       } catch (error) {
-        console.error('Error loading language preference:', error);
+        console.error('Error loading language preference or checking model status:', error);
+        setIsModelLoading(false); // Fallback in case of error
       }
     };
     fetchUserLanguage();
@@ -65,7 +76,7 @@ const Detection = () => {
   }, [isMuted, cancel]);
 
   const translateAndSpeak = async (text: string) => {
-    if (!supported || isMuted || speaking) return;
+    if (!supported || isMuted) return;
     
     try {
       const translatedText = userLanguage !== "en" 
@@ -83,31 +94,29 @@ const Detection = () => {
   };
 
   const announceDetection = async (objects: DetectedObject[], personCount: number) => {
-    if (!supported || isMuted || speaking) return;
+    if (!supported || isMuted) return;
 
     const now = Date.now();
     if (now - lastSpokenTimeRef.current < 3000) return;
 
-    const announcements: string[] = [];
-
+    // Create separate announcement for people count
     if (personCount > 0) {
-      announcements.push(`${personCount} ${personCount === 1 ? 'person' : 'people'} detected`);
+      const personAnnouncement = `${personCount} ${personCount === 1 ? 'person' : 'people'} detected`;
+      await translateAndSpeak(personAnnouncement);
     }
 
-    if (objects.length > 0) {
-      const detections = objects.map(obj => 
-        `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`
-      );
-      announcements.push(...detections);
+    // Announce each object separately
+    for (const obj of objects) {
+      const objAnnouncement = `${obj.label} detected ${obj.distance ? `${obj.distance} away` : ''} to your ${obj.position}`;
+      
+      // Make sure this is a different announcement from the last one
+      if (objAnnouncement !== lastDetectionRef.current) {
+        await translateAndSpeak(objAnnouncement);
+        lastDetectionRef.current = objAnnouncement;
+      }
     }
 
-    const fullAnnouncement = announcements.join('. ');
-
-    if (fullAnnouncement && fullAnnouncement !== lastDetectionRef.current) {
-      await translateAndSpeak(fullAnnouncement);
-      lastSpokenTimeRef.current = now;
-      lastDetectionRef.current = fullAnnouncement;
-    }
+    lastSpokenTimeRef.current = now;
   };
 
   const detectFrame = async (videoElement: HTMLVideoElement) => {
@@ -162,6 +171,15 @@ const Detection = () => {
   };
 
   const startCamera = async () => {
+    if (isModelLoading) {
+      toast({
+        title: "Models Loading",
+        description: "Please wait while models are being initialized.",
+        variant: "default",
+      });
+      return;
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -284,9 +302,19 @@ const Detection = () => {
                     size="lg"
                     className="text-xl bg-blue-600 hover:bg-blue-700 transition-colors"
                     onClick={startCamera}
+                    disabled={isModelLoading}
                   >
-                    <Camera className="mr-2 h-6 w-6" />
-                    Start Camera
+                    {isModelLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                        Initializing Models...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="mr-2 h-6 w-6" />
+                        Start Camera
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
